@@ -6,9 +6,11 @@ import com.camp.itprofiles.dto.request.SignUpRequest;
 import com.camp.itprofiles.exception.NotFoundException;
 import com.camp.itprofiles.mapper.AuthMapper;
 import com.camp.itprofiles.mapper.WorkerProfileMapper;
+import com.camp.itprofiles.model.Competency;
 import com.camp.itprofiles.model.Worker;
-import com.camp.itprofiles.repository.SystemLevelRepository;
-import com.camp.itprofiles.repository.WorkerRepository;
+import com.camp.itprofiles.model.WorkerSoftGrade;
+import com.camp.itprofiles.model.WorkerSoftSkill;
+import com.camp.itprofiles.repository.*;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,10 @@ public class WorkerService {
 
     private final WorkerRepository workerRepository;
     private final SystemLevelRepository systemLevelRepository;
+    private final CompetencyRepository competencyRepository;
+    private final WorkerSoftSkillRepository workerSoftSkillRepository;
+    private final WorkerSoftGradeRepository workerSoftGradeRepository;
+    private final CompetencyLevelRepository competencyLevelRepository;
 
 
     public Optional<Worker> findOptionalByEmail(String email) {
@@ -34,7 +40,20 @@ public class WorkerService {
         Worker worker = AuthMapper.INSTANCE.toEntity(signUpRequest);
         worker.setPassword(hashPassword(worker.getPassword()));
         worker.setSystemLevel(systemLevelRepository.findSystemLevelById(1L));
-        return workerRepository.save(worker).getId();
+        worker = workerRepository.save(worker);
+        List<Competency> comps = competencyRepository.findAllCategoriesByFlag(false);
+        for (Competency competency : comps) {
+            WorkerSoftSkill softSkill = workerSoftSkillRepository.save(WorkerSoftSkill.builder()
+                    .worker(worker)
+                    .competency(competency)
+                    .build());
+            workerSoftGradeRepository.save(WorkerSoftGrade.builder()
+                    .worker(worker)
+                    .workerSoftSkill(softSkill)
+                    .competencyLevel(competencyLevelRepository.findCompetencyLevelById(2L))
+                    .build());
+        }
+        return worker.getId();
     }
 
     public WorkerProfileDTO findById(Long id) {
